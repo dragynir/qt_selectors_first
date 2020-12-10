@@ -32,7 +32,8 @@ class MainWindow(QMainWindow):
 
 
     def closeEvent(self, event):
-        for name, bs in self.form_widget.servers.items():
+        bs = self.form_widget.bokeh_server
+        if bs:
             bs.server.io_loop.stop()
             bs.server.stop()
             bs.thread.join()
@@ -55,16 +56,19 @@ class BokehServer(object):
 class FormWidget(QWidget):
     def __init__(self, parent):
         super(FormWidget, self).__init__(parent)
-        self.servers = dict()
+        self.bokeh_server = None
         self.__layout()
 
     def run_hist_selector(self):
 
         df_all = pd.read_csv(join(dirname(__file__), 'data/merged_data.csv'))
         map_cols = list(df_all.columns[3:])
-        cs = hist_cluster_selector(df=df_all, cols=map_cols, mode='embed')
-        html = file_html(cs.layout, CDN, "Hist selector")
-        self.embed_page(html)
+        launcher = hist_cluster_selector(df=df_all, cols=map_cols, mode='notebook')
+        
+        res_name = '/'
+        self.bokeh_server = self.run_server(res_name, launcher)
+        self.run_browser(res_name)
+
 
 
     def run_cluster_selector(self):
@@ -85,12 +89,8 @@ class FormWidget(QWidget):
 
         launcher = cluster_selector(df=df, cols=new_cols, k_map=['X', 'Y'], k_emb=['F1', 'F2'], mode='notebook')
 
-        res_name = '/hist'
-
-        if res_name in self.servers:
-            self.stop_server(self.servers[res_name])
-
-        self.servers[res_name] = self.run_server(res_name, launcher)
+        res_name = '/'
+        self.bokeh_server = self.run_server(res_name, launcher)
         self.run_browser(res_name)
 
 
@@ -99,11 +99,11 @@ class FormWidget(QWidget):
         bs.server.stop()
         bs.thread.join()
 
-
-
-
-
     def run_server(self, res_name, launcher):
+
+        if self.bokeh_server:
+            self.stop_server(self.bokeh_server)
+
         server = Server({res_name: launcher})
         server.start()
         x = threading.Thread(target=server.io_loop.start)
