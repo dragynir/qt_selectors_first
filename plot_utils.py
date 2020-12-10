@@ -916,10 +916,12 @@ def hist_cluster_selector(df, cols, map_cmaps=None, max_sliders_count=7,
 
 
 class _ClusterPipeline:
-    def __init__(self, df, map_cols, init_hist_selector=None, init_cluster_selector=None,
+    def __init__(self, doc, df, map_cols, init_hist_selector=None, init_cluster_selector=None,
         hist_kwargs=None, cluster_kwargs=None, save_name='result_df.csv', img_path='out_pics'):
 
-        self.doc = curdoc()
+        if doc is None:
+            self.doc = curdoc()
+
         self.df = df
         self.map_cols = map_cols
         self.init_cluster_selector = init_cluster_selector
@@ -979,7 +981,7 @@ class _ClusterPipeline:
 
             self.layout.children.append(cs.layout)
 
-def create_cluster_pipeline(df, map_cols, init_hist_selector=None,
+def create_cluster_pipeline(df, map_cols, init_hist_selector=None, mode='server',
     init_cluster_selector=None, hist_kwargs=None, cluster_kwargs=None, save_name='result_df.csv', img_path='out_pics'):
 
     """
@@ -1005,4 +1007,9 @@ def create_cluster_pipeline(df, map_cols, init_hist_selector=None,
             None
     """
 
-    _ClusterPipeline(df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path)
+    if mode == 'notebook':
+        def launch(doc):        
+            _ClusterPipeline(doc, df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path)
+        return launch
+
+    _ClusterPipeline(None, df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path)

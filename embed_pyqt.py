@@ -1,6 +1,7 @@
 from os.path import dirname, join
 import pandas as pd
 import sys 
+from functools import partial
 from plot_utils import hist_cluster_selector, cluster_selector
 import sys
 from PyQt5 import QtWebEngineWidgets, QtWidgets
@@ -57,13 +58,36 @@ class FormWidget(QWidget):
     def __init__(self, parent):
         super(FormWidget, self).__init__(parent)
         self.bokeh_server = None
+        self.path_dict = dict()
         self.__layout()
+
+
+    def read_data(self, df_path, key):
+
+        user_path = self.path_dict[key].text()
+
+        if len(user_path) != 0:
+            df_path = self.path_dict[key] 
+
+        try:
+            df_all = pd.read_csv(df_path)
+        except:
+            return None
+
+        return df_all
+
 
     def run_hist_selector(self):
 
-        df_all = pd.read_csv(join(dirname(__file__), 'data/merged_data.csv'))
-        map_cols = list(df_all.columns[3:])
-        launcher = hist_cluster_selector(df=df_all, cols=map_cols, mode='notebook')
+
+        df = self.read_data('data/merged_data.csv', 'hist')
+
+        if df is None:
+            return
+
+
+        map_cols = list(df.columns[3:])
+        launcher = hist_cluster_selector(df=df, cols=map_cols, mode='notebook')
         
         res_name = '/'
         self.bokeh_server = self.run_server(res_name, launcher)
@@ -73,7 +97,12 @@ class FormWidget(QWidget):
 
     def run_cluster_selector(self):
 
-        df = pd.read_csv(join(dirname(__file__), 'data/df_for_clusters.csv'))
+        df = self.read_data('data/df_for_clusters.csv', 'cluster')
+
+        if df is None:
+            return
+
+
         map_cols = list(df.columns[3:])
 
         h_cols = list(df.columns[3 + len(map_cols):])
@@ -111,7 +140,6 @@ class FormWidget(QWidget):
         return BokehServer(server, x)
 
 
-
     def run_browser(self, res_name):
 
         self.browser.settings().setAttribute(QtWebEngineWidgets.QWebEngineSettings.JavascriptEnabled, True)
@@ -131,20 +159,60 @@ class FormWidget(QWidget):
         self.mainLayout.addWidget(dev_view, 100)
         self.browser.page().setDevToolsPage(self.dev.page())
 
+
+
+    def __create_selector_block(self, run_btn_name, name, key, container, path_dict):
+        hbox = QHBoxLayout()
+        label = QLabel(name)
+        text_input = QLineEdit()
+
+
+        run_button = QPushButton(run_btn_name)
+        button = QPushButton()
+        # button.setIcon(QIcon(os.path.join('res', 'file_folder.png')))
+        button.clicked.connect(partial(self.__on_choose_folder, key))
+
+
+        hbox.addWidget(run_button, stretch=50)
+        hbox.addWidget(label, stretch=25)
+        hbox.addWidget(text_input, stretch=25)
+        hbox.addWidget(button)
+
+        container.addLayout(hbox)
+        path_dict[key] = text_input
+
+        return run_button
+
+
+    def __on_choose_folder(self, name):
+        path = QFileDialog.getOpenFileName(self, 'Open  csv file', '*.csv')
+        self.path_dict[name].setText(path[0])
+
+        
+
     def __layout(self):
         self.vbox = QVBoxLayout()
-        self.hBox = QVBoxLayout()
+        self.vbox_container = QVBoxLayout()
         self.hist_selector_btn = QPushButton("Start hist selector")
         self.cluster_selector_btn = QPushButton("Start cluster selector")
+
+
+        self.hist_selector_btn = self.__create_selector_block('Start hist selector', \
+                                'DataFrame:', 'hist', self.vbox_container, self.path_dict)
+
+        self.cluster_selector_btn = self.__create_selector_block('Start cluster selector', \
+                                'DataFrame:', 'cluster', self.vbox_container, self.path_dict)
 
 
 
         self.browser = QWebEngineView()
         self.dev = QWebEngineView()
-        self.hBox.addWidget(self.browser, stretch=50)
-        self.hBox.addWidget(self.hist_selector_btn, stretch=10)
-        self.hBox.addWidget(self.cluster_selector_btn, stretch=10)
-        self.vbox.addLayout(self.hBox)
+
+        self.vbox_container.addWidget(self.browser, stretch=50)
+        self.vbox_container.addWidget(self.hist_selector_btn, stretch=10)
+        self.vbox_container.addWidget(self.cluster_selector_btn, stretch=10)
+
+        self.vbox.addLayout(self.vbox_container)
         self.setLayout(self.vbox)
 
         self.cluster_selector_btn.clicked.connect(self.run_cluster_selector)
