@@ -169,11 +169,12 @@ class _ClustersSelector():
 
         if mode == 'server':
             self.layout = column(self.__create_save_panel(), self.layout)
-        elif mode == 'embed':
+        else:
             self.layout = column(self.__create_file_save_panel(), self.layout) 
 
         if not mode == 'embed':           
             doc.add_root(self.layout)
+
         # else use self.layout
 
 
@@ -524,11 +525,26 @@ class _HistClusterSelector():
         self.layout = gridplot([[self.selection_group, None, None],
             [self.control_panel, self.hist_figure, self.cluster_map_figure, self.attr_map_figure]])
 
+        if mode == 'server':
+            self.layout = column(self.__create_save_panel(), self.layout)
+        else:
+            self.layout = column(self.__create_file_save_panel(), self.layout) 
+
+        if not mode == 'embed':           
+            doc.add_root(self.layout)
+
+
 
         if not mode == 'embed':
             doc.add_root(self.layout)
 
         # else use self.layout
+
+
+    def __create_file_save_panel(self):
+        save_btn = Button(label="Save result dataframe", button_type="success", width_policy='min')
+        save_btn.on_click(self.__save_dataframe)
+        return save_btn
 
 
     def __create_save_panel(self):
@@ -917,10 +933,12 @@ def hist_cluster_selector(df, cols, map_cmaps=None, max_sliders_count=7,
 
 class _ClusterPipeline:
     def __init__(self, doc, df, map_cols, init_hist_selector=None, init_cluster_selector=None,
-        hist_kwargs=None, cluster_kwargs=None, save_name='result_df.csv', img_path='out_pics'):
+        hist_kwargs=None, cluster_kwargs=None, save_name='result_df.csv', img_path='out_pics', mode='server'):
 
         if doc is None:
             self.doc = curdoc()
+        else:
+            self.doc = doc
 
         self.df = df
         self.map_cols = map_cols
@@ -933,7 +951,7 @@ class _ClusterPipeline:
         self.__save_maps()
 
         if init_hist_selector is None:
-            hs = hist_cluster_selector(self.df, list(self.df.columns))
+            hs = hist_cluster_selector(self.df, list(self.df.columns), mode='embed')
         else:
             hs = hist_cluster_selector(**init_hist_selector(self.df, hist_kwargs), mode='embed', callback=self.__main_loop)
 
@@ -945,17 +963,19 @@ class _ClusterPipeline:
         save_btn = Button(label="Save result dataframe", button_type="success")
         save_btn.on_click(self.__save_dataframe)
 
-        download_btn = Button(label="Download result dataframe", button_type="success")
-        download_btn.js_on_click(CustomJS(args=dict(source=ColumnDataSource(self.df)),
-                                    code=open(join(dirname(__file__), 'download_df.js')).read()))
+        if mode != 'notebook':
+            download_btn = Button(label="Download result dataframe", button_type="success")
+            download_btn.js_on_click(CustomJS(args=dict(source=ColumnDataSource(self.df)),
+                                        code=open(join(dirname(__file__), 'download_df.js')).read()))
+            self.save_panel = row(save_btn, download_btn)
+            self.doc.add_root(column(self.save_panel, self.layout, spacing=30))
+        else:
+            self.doc.add_root(self.layout)
 
-        self.save_panel = row(save_btn, download_btn)
-
-        self.doc.add_root(column(self.save_panel, self.layout, spacing=30))
 
 
     def __save_dataframe(self):
-        self.df.to_csv(join(dirname(__file__), self.save_name))
+        self.df.to_csv(self.save_name)
 
     def __save_maps(self):
 
@@ -975,7 +995,7 @@ class _ClusterPipeline:
                 return
             
             if self.init_cluster_selector is None:
-                cs = cluster_selector(self.df, list(self.df.columns), k_map=['X', 'Y'], k_emb=['F1', 'F2'])
+                cs = cluster_selector(self.df, list(self.df.columns), k_map=['X', 'Y'], k_emb=['F1', 'F2'], mode='embed')
             else:
                 cs = cluster_selector(**self.init_cluster_selector(self.df, self.cluster_kwargs), mode='embed', callback=self.__main_loop)
 
@@ -1009,7 +1029,7 @@ def create_cluster_pipeline(df, map_cols, init_hist_selector=None, mode='server'
 
     if mode == 'notebook':
         def launch(doc):        
-            _ClusterPipeline(doc, df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path)
+            _ClusterPipeline(doc, df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path, mode)
         return launch
 
-    _ClusterPipeline(None, df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path)
+    _ClusterPipeline(None, df, map_cols, init_hist_selector, init_cluster_selector, hist_kwargs, cluster_kwargs, save_name, img_path, mode)

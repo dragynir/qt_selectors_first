@@ -9,13 +9,13 @@ EXT = {'txt': pd.read_table, 'csv': pd.read_csv,
        'xls': pd.read_excel, 'xlsx': pd.read_excel}
 
 
-def read_all_data(dir='data'):
+def read_all_data(dirname='data'):
     """
-    Reads ALL data from 'dir' with extension .txt, .csv, .xls(x).
+    Reads ALL data from 'dirname' with extension .txt, .csv, .xls(x).
     It drops all columns that does not have a name!
     
     Arguments:
-        dir: str
+        dirname: str
             Name of directory, wherein data is stored
     
     Return:
@@ -24,7 +24,7 @@ def read_all_data(dir='data'):
             and values are pandas.DataFrame objects
     """
     
-    path = dir + '/'
+    path = dirname + '/'
     allFiles = os.listdir(path)
     files, names, exts = parser(allFiles)
     cols_parser = lambda x: x.split(':')[0].casefold() != 'unnamed'
