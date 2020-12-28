@@ -337,6 +337,8 @@ class FormWidget(QWidget):
 
         self.__create_selector_block(f'{self.hist_selector_name} DataFrame:', 'hist', self.vbox_container, self.path_dict)
         self.__create_selector_block(f'{self.clusters_selector_name} DataFrame:', 'cluster', self.vbox_container, self.path_dict)
+        self.__create_selector_block(f'{self.pipeline_name} DataFrame:', 'pipeline', self.vbox_container, self.path_dict)
+
         self.vbox_container.addWidget(self.run_button)
 
 
